@@ -12,16 +12,16 @@
      2) 아래 DEMO_MODE 를 false 로 변경
    ========================================================================= */
 
-const DEMO_MODE = true;
+const DEMO_MODE = false;
 
 // ↓↓↓ 실서비스 전환 시 Firebase 콘솔에서 복사한 값으로 채우세요 ↓↓↓
 const firebaseConfig = {
-  apiKey: "여기에-붙여넣기",
-  authDomain: "여기에-붙여넣기",
-  projectId: "여기에-붙여넣기",
-  storageBucket: "여기에-붙여넣기",
-  messagingSenderId: "여기에-붙여넣기",
-  appId: "여기에-붙여넣기",
+  apiKey: "AIzaSyCASk6EowVlWQQUYNHc5_-LbUxl4VSTm0w",
+  authDomain: "yumti-bus.firebaseapp.com",
+  projectId: "yumti-bus",
+  storageBucket: "yumti-bus.firebasestorage.app",
+  messagingSenderId: "75640330993",
+  appId: "1:75640330993:web:a32cff9a562811c87aa750"
 };
 
 // 관리자 비밀번호 (데모용). 실서비스에서는 Firebase 보안 규칙으로 보호하세요.
