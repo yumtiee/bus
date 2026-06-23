@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>염티초 · 관리자 · 버스 미탑승 명단</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap wrap--admin">
+    <div class="top">
+      <div class="badge">🗒️</div>
+      <div>
+        <h1>염티초 버스 미탑승 관리자</h1>
+        <p>오늘 안 타는 학생을 한눈에 확인하세요</p>
+      </div>
+      <div class="spacer"></div>
+      <button id="logoutBtn" class="btn btn--sm hide">로그아웃</button>
+    </div>
+
+    <!-- ========== 로그인 ========== -->
+    <section id="loginCard" class="card" style="max-width:380px;margin:40px auto">
+      <h2>관리자 로그인</h2>
+      <p class="hint">관리자만 접근할 수 있는 페이지입니다.</p>
+      <label class="field" for="pw">비밀번호</label>
+      <input id="pw" type="password" placeholder="비밀번호 입력" />
+      <button id="loginBtn" class="btn btn--primary" style="margin-top:12px">로그인</button>
+      <p id="loginErr" class="hint hide" style="color:var(--red);margin-top:10px">비밀번호가 올바르지 않습니다.</p>
+    </section>
+
+    <!-- ========== 본문 ========== -->
+    <div id="adminBody" class="hide">
+      <div class="tabs">
+        <button data-tab="list" aria-selected="true">📋 명단</button>
+        <button data-tab="cal" aria-selected="false">📅 달력</button>
+        <button data-tab="teacher" aria-selected="false">✏️ 관리자 입력</button>
+        <button data-tab="roster" aria-selected="false">👥 학생 관리</button>
+      </div>
+
+      <!-- 명단 탭 -->
+      <section id="tab-list" class="card">
+        <div class="daterow">
+          <input id="listDate" type="date" style="max-width:180px" />
+          <button id="todayBtn" class="btn btn--sm">오늘</button>
+          <div class="spacer" style="flex:1"></div>
+          <div class="count">미탑승 <b id="listCount">0</b>명</div>
+        </div>
+        <div id="listBox"></div>
+      </section>
+
+      <!-- 달력 탭 -->
+      <section id="tab-cal" class="card hide">
+        <div class="cal">
+          <div class="cal-head">
+            <button id="calPrev" class="btn btn--sm">‹</button>
+            <div class="mon" id="calMonth"></div>
+            <button id="calNext" class="btn btn--sm">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <p class="hint" style="margin-top:14px">빨간 숫자 = 그 날의 미탑승 인원. 날짜를 누르면 명단으로 이동합니다.</p>
+      </section>
+
+      <!-- 관리자 입력 탭 -->
+      <section id="tab-teacher" class="card hide">
+        <h2>관리자 입력</h2>
+        <p class="hint">관리자가 직접 미탑승 학생을 체크합니다. 학부모가 이미 신청한 학생은 자동으로 한 건으로 합쳐집니다.</p>
+        <label class="field" for="teacherDate">날짜</label>
+        <input id="teacherDate" type="date" style="max-width:200px;margin-bottom:14px" />
+        <input id="teacherSearch" type="text" placeholder="학생 이름 검색" style="margin-bottom:12px" />
+        <div id="teacherList"></div>
+      </section>
+
+      <!-- 학생 관리 탭 -->
+      <section id="tab-roster" class="card hide">
+        <h2>학생 명단 관리</h2>
+        <p class="hint">학부모가 검색해서 선택할 수 있는 전체 학생 명단입니다.</p>
+
+        <!-- 엑셀/CSV 일괄 업로드 -->
+        <div style="border:1px dashed var(--line);border-radius:12px;padding:14px;margin-bottom:18px;background:#fcfcfd">
+          <div style="font-weight:600;font-size:13.5px;margin-bottom:4px">📂 엑셀/CSV로 한 번에 올리기</div>
+          <p class="hint" style="margin:0 0 10px">
+            <b>이름</b>, <b>학급</b> 두 열이 있으면 됩니다. (.xlsx / .xls / .csv)
+            <a class="textlink" id="dlTemplate" href="#">양식 내려받기</a>
+          </p>
+          <div class="row">
+            <input id="fileInput" type="file" accept=".xlsx,.xls,.csv"
+                   style="padding:9px 12px;font-size:13px" />
+          </div>
+          <div id="uploadPreview" class="hide" style="margin-top:12px">
+            <div class="count" style="margin-bottom:8px">불러온 학생 <b id="previewCount">0</b>명
+              <span id="skipNote" class="hint" style="margin-left:6px"></span></div>
+            <div id="previewBox" style="max-height:200px;overflow:auto;margin-bottom:10px"></div>
+            <div class="row">
+              <button id="confirmUpload" class="btn btn--primary" style="padding:12px">명단에 추가</button>
+              <button id="cancelUpload" class="btn">취소</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom:8px">
+          <input id="newName" type="text" placeholder="학생 이름" />
+          <input id="newKlass" type="text" placeholder="학급 (예: 1학년 2반)" />
+        </div>
+        <button id="addStudent" class="btn btn--sm" style="margin-bottom:16px">학생 한 명 추가</button>
+        <div id="rosterBox"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="db.js"></script>
+  <script>
+  /* ====================== 관리자 앱 로직 ====================== */
+  const SESSION_KEY = "adminLoggedIn";
+  let roster = [];
+  let unsub = null;             // 명단 실시간 구독 해제 함수
+  let calRef = new Date();      // 달력에서 보고 있는 달
+  let monthCounts = {};         // {YYYY-MM-DD: 인원}
+
+  function todayStr() {
+    const d = new Date(), z = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+  }
+  function prettyDate(s) {
+    const [y,m,d] = s.split("-").map(Number);
+    const wd = ["일","월","화","수","목","금","토"][new Date(y,m-1,d).getDay()];
+    return `${y}년 ${m}월 ${d}일 (${wd})`;
+  }
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 2000);
+  }
+
+  /* ---------- 로그인 ---------- */
+  function tryLogin(pw) {
+    if (pw === ADMIN_PASSWORD) {
+      sessionStorage.setItem(SESSION_KEY, "1");
+      showApp();
+    } else {
+      document.getElementById("loginErr").classList.remove("hide");
+    }
+  }
+  document.getElementById("loginBtn").onclick = () =>
+    tryLogin(document.getElementById("pw").value);
+  document.getElementById("pw").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") tryLogin(e.target.value);
+  });
+  document.getElementById("logoutBtn").onclick = () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    if (unsub) unsub();
+    location.reload();
+  };
+
+  async function showApp() {
+    document.getElementById("loginCard").classList.add("hide");
+    document.getElementById("adminBody").classList.remove("hide");
+    document.getElementById("logoutBtn").classList.remove("hide");
+    roster = await db.getRoster();
+    const t = todayStr();
+    document.getElementById("listDate").value = t;
+    document.getElementById("teacherDate").value = t;
+    watchList(t);            // 요구사항 8: 접속하면 '오늘'이 뜸
+    renderRoster();
+    renderTeacherList();
+  }
+
+  /* ---------- 탭 전환 ---------- */
+  document.querySelectorAll(".tabs button").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".tabs button").forEach(b =>
+        b.setAttribute("aria-selected", b === btn));
+      ["list","cal","teacher","roster"].forEach(name =>
+        document.getElementById("tab-" + name).classList.toggle("hide", name !== btn.dataset.tab));
+      if (btn.dataset.tab === "cal") renderCalendar();
+    };
+  });
+
+  /* ---------- 명단 탭 ---------- */
+  document.getElementById("listDate").addEventListener("change", (e) => watchList(e.target.value));
+  document.getElementById("todayBtn").onclick = () => {
+    document.getElementById("listDate").value = todayStr();
+    watchList(todayStr());
+  };
+
+  function watchList(date) {
+    if (unsub) unsub();
+    unsub = db.subscribeAbsences(date, (rows) => renderList(date, rows));
+  }
+
+  function renderList(date, rows) {
+    document.getElementById("listCount").textContent = rows.length;
+    const box = document.getElementById("listBox");
+    if (rows.length === 0) {
+      box.innerHTML = `<div class="empty"><div class="big">🚌</div>
+        ${prettyDate(date)}<br>미탑승 신청이 없습니다.</div>`;
+      return;
+    }
+    rows.sort((a,b) => (a.klass+a.studentName).localeCompare(b.klass+b.studentName, "ko"));
+    box.innerHTML = `<table class="list">
+      <thead><tr><th>학생</th><th>학급</th><th>접수 경로</th><th></th></tr></thead>
+      <tbody>${rows.map(r => `
+        <tr>
+          <td class="nm">${r.studentName}</td>
+          <td>${r.klass}</td>
+          <td>${r.reportedBy === "teacher"
+            ? '<span class="chip chip--teacher">관리자</span>'
+            : '<span class="chip chip--parent">학부모</span>'}</td>
+          <td style="text-align:right">
+            <button class="btn btn--sm btn--danger" data-del="${r.studentId}">삭제</button>
+          </td>
+        </tr>`).join("")}
+      </tbody></table>`;
+    box.querySelectorAll("[data-del]").forEach(b => {
+      b.onclick = async () => { await db.cancelAbsence(date, b.dataset.del); toast("삭제했습니다"); };
+    });
+  }
+
+  /* ---------- 달력 탭 ---------- */
+  document.getElementById("calPrev").onclick = () => { calRef.setMonth(calRef.getMonth()-1); renderCalendar(); };
+  document.getElementById("calNext").onclick = () => { calRef.setMonth(calRef.getMonth()+1); renderCalendar(); };
+
+  async function renderCalendar() {
+    const y = calRef.getFullYear(), m = calRef.getMonth();
+    document.getElementById("calMonth").textContent = `${y}년 ${m+1}월`;
+
+    // 이 달의 날짜별 인원 집계
+    monthCounts = {};
+    const z = (n) => String(n).padStart(2, "0");
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const tasks = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${y}-${z(m+1)}-${z(d)}`;
+      tasks.push(db.getAbsences(ds).then(rows => { if (rows.length) monthCounts[ds] = rows.length; }));
+    }
+    await Promise.all(tasks);
+
+    const grid = document.getElementById("calGrid");
+    const dows = ["일","월","화","수","목","금","토"];
+    let html = dows.map(d => `<div class="dow">${d}</div>`).join("");
+    const firstDow = new Date(y, m, 1).getDay();
+    for (let i = 0; i < firstDow; i++) html += `<div class="cal-cell empty"></div>`;
+    const t = todayStr();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${y}-${z(m+1)}-${z(d)}`;
+      const cnt = monthCounts[ds];
+      html += `<div class="cal-cell ${ds===t?'today':''}" data-date="${ds}">
+        <span>${d}</span>${cnt ? `<span class="dot">${cnt}</span>` : ""}</div>`;
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll("[data-date]").forEach(cell => {
+      cell.onclick = () => {
+        const ds = cell.dataset.date;
+        document.getElementById("listDate").value = ds;
+        watchList(ds);
+        document.querySelector('.tabs button[data-tab="list"]').click();
+      };
+    });
+  }
+
+  /* ---------- 관리자 입력 탭 ---------- */
+  const teacherSearch = document.getElementById("teacherSearch");
+  teacherSearch.addEventListener("input", renderTeacherList);
+  document.getElementById("teacherDate").addEventListener("change", renderTeacherList);
+
+  async function renderTeacherList() {
+    const date = document.getElementById("teacherDate").value || todayStr();
+    const q = teacherSearch.value.trim();
+    const absentRows = await db.getAbsences(date);
+    const absentIds = new Set(absentRows.map(r => r.studentId));
+    const box = document.getElementById("teacherList");
+    const list = roster.filter(s => !q || s.name.includes(q));
+    if (list.length === 0) { box.innerHTML = `<p class="hint">학생이 없습니다.</p>`; return; }
+    box.innerHTML = list.map(s => {
+      const on = absentIds.has(s.id);
+      return `<div class="pick" data-id="${s.id}" aria-checked="${on}">
+        <div class="check">${on ? "✓" : ""}</div>
+        <div class="who"><div class="nm">${s.name}</div><div class="cl">${s.klass}</div></div>
+        ${on ? '<span class="chip chip--teacher">미탑승</span>' : ''}
+      </div>`;
+    }).join("");
+    box.querySelectorAll(".pick").forEach(el => {
+      el.onclick = async () => {
+        const s = roster.find(r => r.id === el.dataset.id);
+        if (absentIds.has(s.id)) {
+          await db.cancelAbsence(date, s.id);
+          toast(`${s.name} 미탑승 해제`);
+        } else {
+          await db.reportAbsence(date, s, "teacher");   // 같은 문서ID → 학부모와 중복돼도 1건
+          toast(`${s.name} 미탑승 처리`);
+        }
+        renderTeacherList();
+      };
+    });
+  }
+
+  /* ---------- 학생 관리: 엑셀/CSV 일괄 업로드 ---------- */
+  // 2차원 배열(행) → [{name, klass}] 변환. 헤더 자동 인식.
+  function rowsToStudents(rows) {
+    rows = rows.filter(r => r && r.some(c => String(c ?? "").trim() !== ""));
+    if (rows.length === 0) return [];
+    const norm = (v) => String(v ?? "").trim();
+    const nameKeys = ["이름","성명","학생","학생명","name","student"];
+    const klassKeys = ["학급","반","학년","class","klass","그룹","group"];
+    const header = rows[0].map(c => norm(c).toLowerCase());
+    const findCol = (keys) => header.findIndex(h => keys.some(k => h.includes(k.toLowerCase())));
+    let nameCol = findCol(nameKeys);
+    let klassCol = findCol(klassKeys);
+
+    let dataRows;
+    if (nameCol >= 0) {                 // 헤더가 인식되면 첫 행은 건너뜀
+      if (klassCol < 0) klassCol = nameCol === 0 ? 1 : 0;
+      dataRows = rows.slice(1);
+    } else {                            // 헤더가 없으면 1열=이름, 2열=학급으로 가정
+      nameCol = 0; klassCol = 1;
+      dataRows = rows;
+    }
+    const out = [];
+    for (const r of dataRows) {
+      const name = norm(r[nameCol]);
+      if (!name) continue;
+      const klass = norm(r[klassCol]) || "미지정";
+      out.push({ name, klass });
+    }
+    return out;
+  }
+
+  let pendingUpload = [];   // 미리보기 중인 추가 대기 명단
+
+  document.getElementById("fileInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+        let parsed = rowsToStudents(aoa);
+
+        // 파일 내 중복 + 이미 등록된 학생(이름+학급 동일) 제외
+        const existing = new Set(roster.map(s => s.name + "|" + s.klass));
+        const seen = new Set();
+        const unique = [];
+        let skipped = 0;
+        for (const s of parsed) {
+          const key = s.name + "|" + s.klass;
+          if (existing.has(key) || seen.has(key)) { skipped++; continue; }
+          seen.add(key); unique.push(s);
+        }
+        pendingUpload = unique;
+        showPreview(unique, skipped);
+      } catch (err) {
+        toast("파일을 읽지 못했습니다. 형식을 확인해 주세요");
+        console.error(err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  function showPreview(list, skipped) {
+    document.getElementById("uploadPreview").classList.remove("hide");
+    document.getElementById("previewCount").textContent = list.length;
+    document.getElementById("skipNote").textContent =
+      skipped > 0 ? `(중복 ${skipped}명 제외됨)` : "";
+    const box = document.getElementById("previewBox");
+    if (list.length === 0) {
+      box.innerHTML = `<p class="hint" style="margin:0">추가할 새 학생이 없습니다. 열 이름(이름/학급)을 확인해 주세요.</p>`;
+      document.getElementById("confirmUpload").disabled = true;
+      return;
+    }
+    document.getElementById("confirmUpload").disabled = false;
+    box.innerHTML = `<table class="list"><tbody>${list.slice(0,100).map(s =>
+      `<tr><td class="nm">${s.name}</td><td>${s.klass}</td></tr>`).join("")}
+      ${list.length > 100 ? `<tr><td colspan="2" class="hint">… 외 ${list.length-100}명</td></tr>` : ""}
+      </tbody></table>`;
+  }
+
+  document.getElementById("confirmUpload").onclick = async () => {
+    if (pendingUpload.length === 0) return;
+    const btn = document.getElementById("confirmUpload");
+    btn.disabled = true; btn.textContent = "추가 중…";
+    await db.addStudentsBulk(pendingUpload);
+    roster = await db.getRoster();
+    renderRoster(); renderTeacherList();
+    toast(`${pendingUpload.length}명을 추가했습니다`);
+    resetUpload();
+  };
+  document.getElementById("cancelUpload").onclick = resetUpload;
+
+  function resetUpload() {
+    pendingUpload = [];
+    document.getElementById("fileInput").value = "";
+    document.getElementById("uploadPreview").classList.add("hide");
+    const btn = document.getElementById("confirmUpload");
+    btn.disabled = false; btn.textContent = "명단에 추가";
+  }
+
+  // 양식(CSV) 내려받기
+  document.getElementById("dlTemplate").onclick = (e) => {
+    e.preventDefault();
+    const csv = "이름,학급\n김민준,1학년 1반\n이서연,1학년 2반\n";
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }); // BOM=한글깨짐방지
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "학생명단_양식.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  /* ---------- 학생 관리 탭 ---------- */
+  document.getElementById("addStudent").onclick = async () => {
+    const name = document.getElementById("newName").value.trim();
+    const klass = document.getElementById("newKlass").value.trim();
+    if (!name || !klass) { toast("이름과 학급을 모두 입력하세요"); return; }
+    await db.addStudent(name, klass);
+    document.getElementById("newName").value = "";
+    document.getElementById("newKlass").value = "";
+    roster = await db.getRoster();
+    renderRoster(); renderTeacherList();
+    toast("학생을 추가했습니다");
+  };
+
+  function renderRoster() {
+    const box = document.getElementById("rosterBox");
+    if (roster.length === 0) { box.innerHTML = `<p class="hint">등록된 학생이 없습니다.</p>`; return; }
+    roster.sort((a,b) => (a.klass+a.name).localeCompare(b.klass+b.name, "ko"));
+    box.innerHTML = `<table class="list"><tbody>${roster.map(s => `
+      <tr><td class="nm">${s.name}</td><td>${s.klass}</td>
+      <td style="text-align:right">
+        <button class="btn btn--sm btn--ghost" data-rm="${s.id}">삭제</button>
+      </td></tr>`).join("")}</tbody></table>`;
+    box.querySelectorAll("[data-rm]").forEach(b => {
+      b.onclick = async () => {
+        await db.removeStudent(b.dataset.rm);
+        roster = await db.getRoster();
+        renderRoster(); renderTeacherList();
+        toast("삭제했습니다");
+      };
+    });
+  }
+
+  /* ---------- 시작 ---------- */
+  if (sessionStorage.getItem(SESSION_KEY) === "1") showApp();
+  </script>
+</body>
+</html>

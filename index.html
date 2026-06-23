@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>염티초 버스 미탑승 알림</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="badge">🚌</div>
+      <div>
+        <h1>염티초 버스 미탑승 알림</h1>
+        <p id="greet">오늘 버스를 안 타는 날, 미리 알려주세요</p>
+      </div>
+      <div class="spacer"></div>
+    </div>
+
+    <!-- ========== 1단계: 자녀 등록 (최초 1회) ========== -->
+    <section id="setupCard" class="card hide">
+      <h2>처음 오셨네요 — 자녀를 등록해 주세요</h2>
+      <p class="hint">한 번만 등록하면 이 기기에서는 다시 입력하지 않아도 됩니다.</p>
+
+      <label class="field" for="search">학생 이름 검색</label>
+      <input id="search" type="text" placeholder="예: 김민준" autocomplete="off" />
+      <div id="searchResults" style="margin-top:10px"></div>
+
+      <div id="myKidsSetup" style="margin-top:14px"></div>
+
+      <button id="setupDone" class="btn btn--primary" disabled style="margin-top:8px">
+        등록 완료하고 시작하기
+      </button>
+    </section>
+
+    <!-- ========== 2단계: 미탑승 보고 ========== -->
+    <section id="reportCard" class="card hide">
+      <h2>어느 날 버스를 안 타나요?</h2>
+      <div class="seg" role="group" aria-label="날짜 선택">
+        <button id="segToday" aria-pressed="true">오늘</button>
+        <button id="segOther" aria-pressed="false">다른 날</button>
+        <button id="segRange" aria-pressed="false">기간</button>
+      </div>
+      <div id="otherDateWrap" class="hide" style="margin-bottom:14px">
+        <label class="field" for="dateInput">날짜 선택</label>
+        <input id="dateInput" type="date" />
+      </div>
+      <div id="rangeWrap" class="hide" style="margin-bottom:14px">
+        <div class="row" style="margin-bottom:10px">
+          <div>
+            <label class="field" for="rangeStart">시작일</label>
+            <input id="rangeStart" type="date" />
+          </div>
+          <div>
+            <label class="field" for="rangeEnd">종료일</label>
+            <input id="rangeEnd" type="date" />
+          </div>
+        </div>
+        <div class="pick" id="skipWeekendRow" aria-checked="true">
+          <div class="check">✓</div>
+          <div class="who">
+            <div class="nm" style="font-size:14px">주말 제외</div>
+            <div class="cl">토·일요일은 신청에서 빼기</div>
+          </div>
+        </div>
+        <p class="hint" id="rangeSummary" style="margin:8px 2px 0"></p>
+      </div>
+
+      <h2 style="margin-top:4px">누가 안 타나요?</h2>
+      <p class="hint" id="kidHint">자녀를 선택하세요 (여러 명 가능)</p>
+      <div id="kidPicker"></div>
+
+      <button id="submitBtn" class="btn btn--primary" disabled style="margin-top:6px">
+        미탑승 알리기
+      </button>
+
+      <div style="text-align:center; margin-top:14px">
+        <a class="textlink" id="manageKids" href="#">자녀 추가 / 관리</a>
+      </div>
+    </section>
+
+    <!-- ========== 현재 등록 현황 ========== -->
+    <section id="statusCard" class="card hide">
+      <h2 id="statusTitle">신청 현황</h2>
+      <div id="statusList"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="db.js"></script>
+  <script>
+  /* ====================== 학부모 앱 로직 ====================== */
+  const LS_KIDS = "myChildren";        // 이 기기에 등록된 자녀
+  let roster = [];                     // 전체 학생 명단
+  let myKids = loadKids();             // [{id,name,klass}]
+  let setupSelection = [...myKids];    // 등록 화면 임시 선택
+  let mode = "today";                  // 'today' | 'other' | 'range'
+  let chosenKids = new Set();          // 보고할 자녀 id
+  let skipWeekend = true;              // 기간 모드: 주말 제외
+  let statusUnsub = null;              // 현황 실시간 구독 해제
+
+  function loadKids() {
+    try { return JSON.parse(localStorage.getItem(LS_KIDS)) || []; }
+    catch { return []; }
+  }
+  function saveKids() { localStorage.setItem(LS_KIDS, JSON.stringify(myKids)); }
+
+  function todayStr() {
+    const d = new Date();
+    const z = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  }
+
+  // 현황 카드가 보여줄 기준 날짜
+  function focusedDate() {
+    if (mode === "today") return todayStr();
+    if (mode === "other") return document.getElementById("dateInput").value || todayStr();
+    return document.getElementById("rangeStart").value || todayStr();
+  }
+
+  // 실제로 신청할 날짜 목록
+  function targetDates() {
+    if (mode === "today") return [todayStr()];
+    if (mode === "other") return [document.getElementById("dateInput").value || todayStr()];
+    const s = document.getElementById("rangeStart").value;
+    const e = document.getElementById("rangeEnd").value;
+    if (!s || !e) return [];
+    return datesBetween(s, e, skipWeekend);
+  }
+
+  // 시작~종료일(포함) 사이의 날짜 배열. skipWeekend면 토·일 제외. 최대 90일.
+  function datesBetween(start, end, skip) {
+    const out = [];
+    const z = (n) => String(n).padStart(2, "0");
+    let cur = new Date(start + "T00:00:00");
+    const last = new Date(end + "T00:00:00");
+    if (last < cur) return out;
+    let guard = 0;
+    while (cur <= last && guard < 200) {
+      const dow = cur.getDay();
+      if (!(skip && (dow === 0 || dow === 6))) {
+        out.push(`${cur.getFullYear()}-${z(cur.getMonth() + 1)}-${z(cur.getDate())}`);
+      }
+      cur.setDate(cur.getDate() + 1);
+      guard++;
+    }
+    return out.slice(0, 90);
+  }
+
+  function prettyDate(s) {
+    const [y, m, d] = s.split("-").map(Number);
+    const wd = ["일","월","화","수","목","금","토"][new Date(y, m-1, d).getDay()];
+    return `${m}월 ${d}일 (${wd})`;
+  }
+
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  // 현황 카드를 기준 날짜에 맞춰 실시간 구독
+  function watchStatus(date) {
+    if (statusUnsub) statusUnsub();
+    statusUnsub = db.subscribeAbsences(date, () => refreshStatus());
+  }
+
+  /* ---------- 화면 전환 ---------- */
+  function render() {
+    const hasKids = myKids.length > 0;
+    document.getElementById("setupCard").classList.toggle("hide", hasKids);
+    document.getElementById("reportCard").classList.toggle("hide", !hasKids);
+    document.getElementById("statusCard").classList.toggle("hide", !hasKids);
+    if (hasKids) {
+      renderKidPicker();
+      watchStatus(focusedDate());
+      document.getElementById("greet").textContent =
+        myKids.map(k => k.name).join(", ") + " 학부모님, 안녕하세요";
+    }
+  }
+
+  /* ---------- 자녀 등록 화면 ---------- */
+  const searchInput = document.getElementById("search");
+  searchInput.addEventListener("input", () => {
+    const q = searchInput.value.trim();
+    const box = document.getElementById("searchResults");
+    if (!q) { box.innerHTML = ""; return; }
+    const hits = roster.filter(s => s.name.includes(q)).slice(0, 6);
+    if (hits.length === 0) {
+      box.innerHTML = `<p class="hint">검색 결과가 없습니다. 이름을 확인하거나 학교에 문의해 주세요.</p>`;
+      return;
+    }
+    box.innerHTML = hits.map(s => {
+      const on = setupSelection.some(k => k.id === s.id);
+      return `<div class="pick" data-id="${s.id}" aria-checked="${on}">
+        <div class="check">${on ? "✓" : ""}</div>
+        <div class="who"><div class="nm">${s.name}</div><div class="cl">${s.klass}</div></div>
+      </div>`;
+    }).join("");
+    box.querySelectorAll(".pick").forEach(el => {
+      el.onclick = () => toggleSetup(el.dataset.id);
+    });
+  });
+
+  function toggleSetup(id) {
+    const i = setupSelection.findIndex(k => k.id === id);
+    if (i >= 0) setupSelection.splice(i, 1);
+    else {
+      const s = roster.find(r => r.id === id);
+      if (s) setupSelection.push(s);
+    }
+    searchInput.dispatchEvent(new Event("input"));
+    renderSetupChosen();
+  }
+
+  function renderSetupChosen() {
+    const box = document.getElementById("myKidsSetup");
+    if (setupSelection.length === 0) { box.innerHTML = ""; }
+    else {
+      box.innerHTML = `<label class="field">선택한 자녀</label>` +
+        setupSelection.map(s => `<div class="pick" aria-checked="true" data-rm="${s.id}">
+          <div class="check">✓</div>
+          <div class="who"><div class="nm">${s.name}</div><div class="cl">${s.klass}</div></div>
+          <button class="btn btn--sm btn--ghost" data-rm-btn="${s.id}">빼기</button>
+        </div>`).join("");
+      box.querySelectorAll("[data-rm-btn]").forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); toggleSetup(b.dataset.rmBtn); };
+      });
+    }
+    document.getElementById("setupDone").disabled = setupSelection.length === 0;
+  }
+
+  document.getElementById("setupDone").onclick = () => {
+    myKids = [...setupSelection];
+    saveKids();
+    toast("등록 완료! 이제 미탑승을 알릴 수 있어요");
+    render();
+  };
+
+  /* ---------- 날짜 토글 ---------- */
+  document.getElementById("segToday").onclick = () => setMode("today");
+  document.getElementById("segOther").onclick = () => setMode("other");
+  document.getElementById("segRange").onclick = () => setMode("range");
+  function setMode(m) {
+    mode = m;
+    document.getElementById("segToday").setAttribute("aria-pressed", m === "today");
+    document.getElementById("segOther").setAttribute("aria-pressed", m === "other");
+    document.getElementById("segRange").setAttribute("aria-pressed", m === "range");
+    document.getElementById("otherDateWrap").classList.toggle("hide", m !== "other");
+    document.getElementById("rangeWrap").classList.toggle("hide", m !== "range");
+    if (m === "other" && !document.getElementById("dateInput").value) {
+      document.getElementById("dateInput").value = todayStr();
+      document.getElementById("dateInput").min = todayStr();
+    }
+    if (m === "range") {
+      const rs = document.getElementById("rangeStart");
+      const re = document.getElementById("rangeEnd");
+      if (!rs.value) { rs.value = todayStr(); rs.min = todayStr(); }
+      if (!re.value) { re.value = todayStr(); re.min = todayStr(); }
+      updateRangeSummary();
+    }
+    watchStatus(focusedDate());
+    refreshStatus();
+  }
+  document.getElementById("dateInput").addEventListener("change", () => {
+    watchStatus(focusedDate()); refreshStatus();
+  });
+
+  // 기간 모드: 날짜/주말 토글 변경 시
+  function onRangeChange() {
+    updateRangeSummary();
+    watchStatus(focusedDate());
+    refreshStatus();
+  }
+  document.getElementById("rangeStart").addEventListener("change", onRangeChange);
+  document.getElementById("rangeEnd").addEventListener("change", onRangeChange);
+  document.getElementById("skipWeekendRow").onclick = (e) => {
+    skipWeekend = !skipWeekend;
+    e.currentTarget.setAttribute("aria-checked", skipWeekend);
+    e.currentTarget.querySelector(".check").textContent = skipWeekend ? "✓" : "";
+    updateRangeSummary();
+  };
+
+  function updateRangeSummary() {
+    const el = document.getElementById("rangeSummary");
+    if (mode !== "range") { el.textContent = ""; return; }
+    const dates = targetDates();
+    if (dates.length === 0) {
+      el.textContent = "종료일이 시작일보다 빠릅니다. 날짜를 확인해 주세요.";
+    } else {
+      el.textContent = `총 ${dates.length}일 신청 — ${prettyDate(dates[0])} ~ ${prettyDate(dates[dates.length-1])}`;
+    }
+  }
+
+  /* ---------- 자녀 선택 (보고) ---------- */
+  function renderKidPicker() {
+    const box = document.getElementById("kidPicker");
+    document.getElementById("kidHint").textContent =
+      myKids.length > 1 ? "자녀를 선택하세요 (여러 명 가능)" : "자녀를 확인하세요";
+    box.innerHTML = myKids.map(k => {
+      const on = chosenKids.has(k.id);
+      return `<div class="pick" data-id="${k.id}" aria-checked="${on}">
+        <div class="check">${on ? "✓" : ""}</div>
+        <div class="who"><div class="nm">${k.name}</div><div class="cl">${k.klass}</div></div>
+      </div>`;
+    }).join("");
+    box.querySelectorAll(".pick").forEach(el => {
+      el.onclick = () => {
+        const id = el.dataset.id;
+        if (myKids.length === 1) {
+          chosenKids = chosenKids.has(id) ? new Set() : new Set([id]);
+        } else {
+          chosenKids.has(id) ? chosenKids.delete(id) : chosenKids.add(id);
+        }
+        renderKidPicker();
+        document.getElementById("submitBtn").disabled = chosenKids.size === 0;
+      };
+    });
+    document.getElementById("submitBtn").disabled = chosenKids.size === 0;
+  }
+
+  /* ---------- 제출 ---------- */
+  document.getElementById("submitBtn").onclick = async () => {
+    const dates = targetDates();
+    const kids = myKids.filter(k => chosenKids.has(k.id));
+    if (dates.length === 0) { toast("날짜를 확인해 주세요"); return; }
+    if (kids.length === 0) return;
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true; btn.textContent = "접수 중…";
+    for (const d of dates) for (const k of kids) await db.reportAbsence(d, k, "parent");
+    btn.textContent = "미탑승 알리기";
+
+    const names = kids.map(k => k.name).join(", ");
+    if (dates.length === 1) {
+      toast(`${prettyDate(dates[0])} · ${names} 미탑승 접수`);
+    } else {
+      toast(`${prettyDate(dates[0])}~${prettyDate(dates[dates.length-1])} · ${names} (${dates.length}일) 접수`);
+    }
+    chosenKids.clear();
+    renderKidPicker();
+    refreshStatus();
+  };
+
+  /* ---------- 현재 신청 현황 ---------- */
+  async function refreshStatus() {
+    const date = focusedDate();
+    const suffix = mode === "range" ? " (기준일 현황)" : "";
+    document.getElementById("statusTitle").textContent = `${prettyDate(date)} 신청 현황${suffix}`;
+    const all = await db.getAbsences(date);
+    const mine = all.filter(a => myKids.some(k => k.id === a.studentId));
+    const box = document.getElementById("statusList");
+    if (mine.length === 0) {
+      box.innerHTML = `<p class="hint" style="margin:0">이 날 신청한 자녀가 없습니다.</p>`;
+      return;
+    }
+    box.innerHTML = mine.map(a => `
+      <div class="pick" aria-checked="false" style="cursor:default">
+        <div class="who">
+          <div class="nm">${a.studentName} · 미탑승</div>
+          <div class="cl">${a.klass} · ${a.reportedBy === "teacher" ? "학교 확인" : "학부모 신청"}</div>
+        </div>
+        <button class="btn btn--sm btn--danger" data-cancel="${a.studentId}">취소</button>
+      </div>`).join("");
+    box.querySelectorAll("[data-cancel]").forEach(b => {
+      b.onclick = async () => {
+        await db.cancelAbsence(date, b.dataset.cancel);
+        toast("신청을 취소했습니다");
+        refreshStatus();
+      };
+    });
+  }
+
+  /* ---------- 자녀 관리 (다시 등록 화면으로) ---------- */
+  document.getElementById("manageKids").onclick = (e) => {
+    e.preventDefault();
+    setupSelection = [...myKids];
+    document.getElementById("setupCard").classList.remove("hide");
+    document.getElementById("reportCard").classList.add("hide");
+    document.getElementById("statusCard").classList.add("hide");
+    renderSetupChosen();
+    searchInput.value = ""; document.getElementById("searchResults").innerHTML = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* ---------- 시작 ---------- */
+  (async function init() {
+    roster = await db.getRoster();
+    renderSetupChosen();
+    render();   // hasKids면 watchStatus(focusedDate())로 실시간 구독 시작
+    refreshStatus();
+  })();
+  </script>
+</body>
+</html>

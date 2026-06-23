@@ -1,0 +1,207 @@
+/* Pretendard — 한국어 가독성 좋은 무료 폰트 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --ink: #1b2430;
+  --ink-soft: #5b6573;
+  --line: #e6e9ef;
+  --primary: #2d6be0;
+  --primary-press: #1f55bf;
+  --amber: #f4a712;
+  --amber-soft: #fff5e0;
+  --red: #e0413a;
+  --red-soft: #fdeceb;
+  --green: #1f9d57;
+  --green-soft: #e8f6ee;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(20, 30, 50, 0.04), 0 8px 24px rgba(20, 30, 50, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { line-height: 1.5; }
+
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
+}
+.wrap--admin { max-width: 960px; }
+
+/* ---------- 헤더 ---------- */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.top .badge {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: var(--amber); color: #2a2102;
+  border-radius: 11px;
+  font-size: 22px;
+}
+.top h1 { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+.top p { margin: 1px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.top .spacer { flex: 1; }
+
+/* ---------- 카드 ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.card h2 {
+  font-size: 14px; font-weight: 700; margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.card .hint { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 14px; }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  appearance: none; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink);
+  font: inherit; font-weight: 600; font-size: 14px;
+  padding: 12px 16px; border-radius: 11px;
+  cursor: pointer; transition: transform .04s, background .15s, border-color .15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn--primary {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+  width: 100%; padding: 15px; font-size: 15.5px;
+}
+.btn--primary:hover { background: var(--primary-press); }
+.btn--primary:disabled { opacity: .45; cursor: not-allowed; }
+.btn--ghost { background: transparent; }
+.btn--danger { color: var(--red); border-color: var(--red-soft); background: var(--red-soft); }
+.btn--sm { padding: 8px 12px; font-size: 13px; border-radius: 9px; }
+
+/* ---------- 입력 ---------- */
+input[type="text"], input[type="password"], input[type="date"], select {
+  width: 100%; font: inherit; font-size: 15px;
+  padding: 13px 14px; border: 1px solid var(--line);
+  border-radius: 11px; background: #fcfcfd; color: var(--ink);
+}
+input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: 0; border-color: var(--primary); }
+label.field { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0 0 6px; }
+.row { display: flex; gap: 8px; }
+.row > * { flex: 1; }
+
+/* ---------- 날짜 토글 ---------- */
+.seg { display: flex; gap: 8px; margin-bottom: 14px; }
+.seg button {
+  flex: 1; padding: 12px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--surface); font: inherit; font-weight: 600; font-size: 14px;
+  cursor: pointer; color: var(--ink-soft);
+}
+.seg button[aria-pressed="true"] {
+  border-color: var(--primary); background: #eef4ff; color: var(--primary);
+}
+
+/* ---------- 선택 리스트 (자녀) ---------- */
+.pick {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 14px; border: 1px solid var(--line);
+  border-radius: 12px; margin-bottom: 8px; cursor: pointer;
+  background: var(--surface); transition: border-color .12s, background .12s;
+}
+.pick:hover { border-color: #c9d4e8; }
+.pick[aria-checked="true"] { border-color: var(--primary); background: #f3f7ff; }
+.pick .check {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  border: 1.5px solid var(--line); display: grid; place-items: center;
+  color: #fff; font-size: 13px;
+}
+.pick[aria-checked="true"] .check { background: var(--primary); border-color: var(--primary); }
+.pick .who { flex: 1; }
+.pick .who .nm { font-weight: 600; font-size: 15px; }
+.pick .who .cl { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- 칩/태그 ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 99px;
+}
+.chip--parent { background: var(--amber-soft); color: #8a5d00; }
+.chip--teacher { background: #eaf0fb; color: #244e9e; }
+
+/* ---------- 상태 메시지 ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+  background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 11px;
+  font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 50; box-shadow: var(--shadow);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.empty {
+  text-align: center; padding: 40px 16px; color: var(--ink-soft);
+}
+.empty .big { font-size: 38px; margin-bottom: 8px; }
+
+/* ---------- 관리자: 명단 ---------- */
+.daterow {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.count {
+  font-size: 13px; color: var(--ink-soft);
+}
+.count b { color: var(--ink); font-size: 15px; }
+
+table.list { width: 100%; border-collapse: collapse; }
+table.list th, table.list td {
+  text-align: left; padding: 13px 12px; border-bottom: 1px solid var(--line); font-size: 14px;
+}
+table.list th { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+table.list tr:last-child td { border-bottom: none; }
+table.list .nm { font-weight: 600; }
+
+/* ---------- 달력 ---------- */
+.cal { user-select: none; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-head .mon { font-weight: 700; font-size: 15px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-grid .dow { text-align: center; font-size: 11px; color: var(--ink-soft); padding: 4px 0; font-weight: 600; }
+.cal-cell {
+  aspect-ratio: 1; border: 1px solid transparent; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 13.5px; position: relative;
+}
+.cal-cell:hover { background: #f1f4f9; }
+.cal-cell.empty { cursor: default; }
+.cal-cell.today { border-color: var(--amber); font-weight: 700; }
+.cal-cell.selected { background: var(--primary); color: #fff; }
+.cal-cell .dot {
+  position: absolute; bottom: 6px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 99px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700;
+  display: grid; place-items: center;
+}
+.cal-cell.selected .dot { background: #fff; color: var(--primary); }
+
+.tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.tabs button {
+  padding: 9px 14px; border-radius: 99px; border: 1px solid var(--line);
+  background: var(--surface); font: inherit; font-weight: 600; font-size: 13.5px;
+  cursor: pointer; color: var(--ink-soft);
+}
+.tabs button[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+.hide { display: none !important; }
+
+a.textlink { color: var(--primary); font-size: 13px; text-decoration: none; font-weight: 600; }
+a.textlink:hover { text-decoration: underline; }
